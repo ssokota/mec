@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mec"
+authors = [
+    {name = "Samuel Sokota"},
+]
+description = "Code for minimum entropy coupling."
+readme = "README.md"
+requires-python = ">= 3.10"
+license = {text = "MIT license"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+        "numpy >= 1.24.3",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+dev = ["mypy >= 0.981", "black >= 23.1.0"]
+examples = ["torch >= 1.13.1", "transformers >= 4.29.2"]
+
+[[tool.mypy.overrides]]
+module = ["transformers"]
+ignore_missing_imports = true
+
+[tool.setuptools]
+packages = ["mec"]

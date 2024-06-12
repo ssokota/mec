@@ -1,0 +1,2 @@
+class ProbabilityZero(Exception):
+    pass
