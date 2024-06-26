@@ -20,7 +20,7 @@ from .posteriors import (
 )
 from ..utilities import (
     entropy,
-    entropy_upper_bound,
+    entropy_upper_bounds,
     get_proportional_rows,
     log,
     greater_than_and_not_close,
@@ -808,13 +808,12 @@ class ARIMEC(IMEC[AutoRegressiveMarginal, AutoregressivePosterior]):
             if greater_than_and_not_close(ent, max_ent):
                 max_ent_posterior = posterior
                 max_ent = ent
-            # If entropy upper bound is less than current max entropy,
-            # prune subtree or subtree complement.
-            for edge, edge_val in enumerate(posterior.distribution):
-                if greater_than_and_not_close(
-                    entropy_upper_bound(1 - edge_val, self.mu.branching_factor + 1),
-                    max_ent,
-                ):
+            dist = posterior.distribution
+            upper_bounds = entropy_upper_bounds(1 - dist, self.mu.branching_factor + 1)
+            for edge, (edge_val, ub) in enumerate(zip(dist, upper_bounds)):
+                # If entropy upper bound is less than largest observed entropy,
+                # prune subtree or subtree complement. Otherwise add neighbor to queue.
+                if greater_than_and_not_close(ub, max_ent):
                     queue.append(self._tree_step(posterior, edge, edge_val))
         return max_ent_posterior
 
