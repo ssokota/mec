@@ -16,28 +16,27 @@ def entropy(distribution: np.ndarray) -> float:
     return -(distribution[mask] * np.log(distribution[mask])).sum()
 
 
-def entropy_upper_bound(q: float, num_states: int) -> float:
-    """Compute upper bound on entropy of distributions satisfying args.
+def entropy_upper_bounds(z: np.ndarray, num_states: int) -> np.ndarray:
+    """Compute upper bounds on entropies of distributions satisfying args.
 
     Args:
-        q: Lower bound on probability of one state.
+        z: Array of lower bounds on probability of one state.
         num_states: Number of states in distribution.
 
     Returns:
-        Upper bound on entropy of distributions satisfying args.
+        Upper bounds on entropy of distributions satisfying args.
     """
-    # If q smaller than uniform probability, upper bound is trivial
-    if q < 1 / num_states:
-        return np.log(num_states)
-    # If q close to 1, handle separately for stability
-    if np.isclose(q, 1):
-        return 0
-    # Otherwise, calculate upper bound
-    ent_from_q = -q * np.log(q)
-    remaining_mass = 1 - q
+    upper_bounds = np.ones_like(z) * np.log(num_states)
+    # If lower bound greater than uniform, can beat trivial upper bound
+    gt_uniform = z > 1 / num_states
+    upper_bounds[gt_uniform] = -z[gt_uniform] * np.log(z[gt_uniform])
+    remaining_mass = 1 - z
     remaining_mass_per_state = remaining_mass / (num_states - 1)
-    ent = ent_from_q - remaining_mass * np.log(remaining_mass_per_state)
-    return ent
+    # Mask out states with no remaining mass for numerical stability
+    has_remaining_mass = ~np.isclose(remaining_mass, 0)
+    mask = gt_uniform & has_remaining_mass
+    upper_bounds[mask] -= remaining_mass[mask] * np.log(remaining_mass_per_state[mask])
+    return upper_bounds
 
 
 def get_proportional_rows(matrix: np.ndarray, row_index: int) -> np.ndarray:
