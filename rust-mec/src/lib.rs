@@ -80,12 +80,15 @@ fn greedy_mec(marginals: &Bound<'_, PyTuple>, sparse: bool) -> PyResult<SparseCo
             .iter()
             .map(|arr| arr.as_array().len())
             .collect::<Vec<usize>>();
-        let mut strides = vec![1usize; shapes.len()];
-        for i in (0..shapes.len() - 1).rev() {
-            strides[i] = strides[i + 1] * shapes[i + 1];
-        }
-        let total_size: usize = shapes.iter().product();
-        let mut dense_data = vec![0.0f64; total_size];
+        let strides = {
+            let mut strides = vec![1usize; shapes.len()];
+            for i in (0..shapes.len() - 1).rev() {
+                strides[i] = strides[i + 1] * shapes[i + 1];
+            }
+            strides
+        };
+        let num_elements: usize = shapes.iter().product();
+        let mut dense_data = vec![0.0f64; num_elements];
 
         gamma.0.into_iter().for_each(|(indices, value)| {
             let flat_index = indices

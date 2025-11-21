@@ -37,6 +37,7 @@ impl Ord for ValAndIdx {
 
 impl SparseCoupling {
     pub fn new(ndarrays: &[numpy::PyReadonlyArray1<f64>]) -> Self {
+        assert!(ndarrays.len() > 0);
         let mut data = vec![];
 
         let mut heaps: Vec<BinaryHeap<ValAndIdx>> = ndarrays
@@ -54,27 +55,21 @@ impl SparseCoupling {
             })
             .collect();
 
-        loop {
-            let any_empty = heaps.iter().any(|heap| heap.is_empty());
+        while !heaps.iter().any(|heap| heap.is_empty()) {
+            let tops: Vec<ValAndIdx> = heaps
+                .iter_mut()
+                .map(|heap| heap.pop().expect("The heap is not empty"))
+                .collect();
+            let min_val = tops.iter().min().expect("There is at least one top").0;
 
-            if !any_empty {
-                let tops: Vec<ValAndIdx> = heaps
-                    .iter_mut()
-                    .map(|heap| heap.pop().expect("The heap is not empty"))
-                    .collect();
-                let min_val = tops.iter().min().expect("There is at least one top").0;
+            heaps.iter_mut().zip(tops.iter()).for_each(|(heap, top)| {
+                let remaining = top.0 - min_val;
+                if remaining > 1e-12 {
+                    heap.push(ValAndIdx(remaining, top.1));
+                }
+            });
 
-                heaps.iter_mut().zip(tops.iter()).for_each(|(heap, top)| {
-                    let remaining = top.0 - min_val;
-                    if remaining > 1e-12 {
-                        heap.push(ValAndIdx(remaining, top.1));
-                    }
-                });
-
-                data.push((tops.into_iter().map(|val_idx| val_idx.1).collect(), min_val));
-            } else {
-                break;
-            }
+            data.push((tops.into_iter().map(|val_idx| val_idx.1).collect(), min_val));
         }
 
         let residual = heaps
