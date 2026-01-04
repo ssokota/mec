@@ -1,6 +1,6 @@
 # mec
 
-This repository implements algorithms for minimum-entropy coupling, which is the problem of computing a joint distribution with minimum entropy for given marginals. 
+This repository implements algorithms for minimum-entropy coupling, which is the problem of computing a joint distribution with minimum entropy for given marginals.
 
 Minimum-entropy coupling is equivalent to maximum-mutual-information coupling for the two marginal case.
 
@@ -17,13 +17,41 @@ The package implements three main algorithms:
 
 ## Installation
 
-To install the package, run:
+### Basic Installation
 
-`pip install .`
+Install the package with Python-only implementation:
+```bash
+pip install -e .
+```
 
-If you would like to run the examples, run:
+Or with examples:
+```bash
+pip install -e ".[examples]"
+```
 
-`pip install ".[examples]"`
+### Optional: Rust Extension for Better Performance
+
+For significantly faster performance, you can build and install the optional Rust extension:
+
+1. Install Rust: https://rustup.rs/
+2. Install maturin (the Rust-Python build tool):
+   ```bash
+   pip install maturin
+   ```
+3. Build and install the Rust extension:
+   ```bash
+   cd rust
+   maturin develop --release
+   cd ..
+   ```
+4. Verify it's working (should print "Using Rust implementation"):
+   ```bash
+   python -c "from mec_rust import greedy_mec; print('Using Rust implementation')"
+   ```
+
+The package automatically uses the Rust implementation when available and falls back to Python otherwise.
+
+See [MIGRATION.md](MIGRATION.md) and [PERFORMANCE.md](PERFORMANCE.md) for more details on the Rust implementation.
 
 ## Usage
 

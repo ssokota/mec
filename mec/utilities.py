@@ -2,6 +2,20 @@ from typing import TypeVar
 
 import numpy as np
 
+# Try to import Rust implementations
+try:
+    from mec_rust import (
+        entropy as _entropy_rust,
+        entropy_upper_bounds as _entropy_upper_bounds_rust,
+        get_proportional_rows as _get_proportional_rows_rust,
+        is_distribution as _is_distribution_rust,
+        is_deterministic as _is_deterministic_rust,
+    )
+
+    _USE_RUST_UTILS = True
+except ImportError:
+    _USE_RUST_UTILS = False
+
 
 def entropy(distribution: np.ndarray) -> float:
     """Calculate entropy of given probability distribution.
@@ -12,6 +26,10 @@ def entropy(distribution: np.ndarray) -> float:
     Returns:
         Entropy of distribution.
     """
+    if _USE_RUST_UTILS:
+        return float(_entropy_rust(distribution.astype(np.float64)))
+
+    # Python fallback
     mask = np.logical_not(np.isclose(distribution, 0))
     return -(distribution[mask] * np.log(distribution[mask])).sum()
 
@@ -26,6 +44,10 @@ def entropy_upper_bounds(z: np.ndarray, num_states: int) -> np.ndarray:
     Returns:
         Upper bounds on entropy of distributions satisfying args.
     """
+    if _USE_RUST_UTILS:
+        return _entropy_upper_bounds_rust(z.astype(np.float64), num_states)
+
+    # Python fallback
     upper_bounds = np.ones_like(z) * np.log(num_states)
     # If lower bound greater than uniform, can beat trivial upper bound
     gt_uniform = z > 1 / num_states
@@ -49,6 +71,14 @@ def get_proportional_rows(matrix: np.ndarray, row_index: int) -> np.ndarray:
     Returns:
         Indices of rows in matrix that are proportional to row at row_index.
     """
+    if _USE_RUST_UTILS:
+        # Rust implementation expects flat array and number of columns
+        matrix_flat = matrix.flatten().astype(np.float64)
+        num_cols = matrix.shape[1]
+        result = _get_proportional_rows_rust(matrix_flat, row_index, num_cols)
+        return result.astype(np.intp)  # Convert to numpy's native int type
+
+    # Python fallback
     # Filter rows with inconsistent sparsity pattern and columns without entries.
     non_zero = matrix > 0
     row_indices = np.arange(matrix.shape[0])
@@ -87,6 +117,10 @@ def is_distribution(z: np.ndarray) -> bool:
     Returns:
         True if `z` is a valid probability distribution, False otherwise.
     """
+    if _USE_RUST_UTILS:
+        # Rust implementation performs validation with a single pass/tolerance.
+        return bool(_is_distribution_rust(z.astype(np.float64)))
+
     return bool(
         np.logical_or(z >= 0, np.isclose(z, 0)).all() and np.isclose(z.sum(), 1)
     )
@@ -101,6 +135,9 @@ def is_deterministic(z: np.ndarray) -> bool:
     Returns:
         True if `z` is a deterministic distribution, False otherwise.
     """
+    if _USE_RUST_UTILS:
+        return bool(_is_deterministic_rust(z.astype(np.float64)))
+
     return np.isclose(z.sum(), 1) and np.sum(z == 1) == 1
 
 
@@ -117,7 +154,7 @@ def is_sublist(a: list[int], b: list[int]) -> bool:
     return all([a_ == b_ for a_, b_ in zip(a, b)])
 
 
-TVector = TypeVar("TVector", float, np.float128, list, np.ndarray)
+TVector = TypeVar("TVector", float, np.float64, list, np.ndarray)
 
 
 def log(t: TVector) -> TVector:
@@ -150,7 +187,7 @@ def normalize(propto: np.ndarray) -> np.ndarray:
     Returns:
         Normalized array.
     """
-    propto = propto.astype(np.float128)
+    propto = propto.astype(np.float64)
     return propto / propto.sum()
 
 

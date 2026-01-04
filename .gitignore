@@ -4,3 +4,5 @@ build*
 .mypy_cache*
 .vscode*
 local*
+/rust/target/
+/rust/Cargo.lock

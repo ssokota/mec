@@ -1,5 +1,4 @@
-"""In this example, we couple three marginals using greedy_mec.
-"""
+"""In this example, we couple three marginals using greedy_mec."""
 
 import numpy as np
 

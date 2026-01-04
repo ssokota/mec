@@ -1,7 +1,7 @@
 """In this example, we use minimum entropy coupling to implement
 entropic causal inference, an approach for determining the causal
-direction between variables. Entropic causal inference is based 
-on an information-theoretic approach analogous to Occam's razor 
+direction between variables. Entropic causal inference is based
+on an information-theoretic approach analogous to Occam's razor
 that prefers the causal direction requiring less entropy.
 
 Our example uses the following data-generating process:

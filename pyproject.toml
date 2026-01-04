@@ -22,9 +22,14 @@ dynamic = ["version"]
 [project.optional-dependencies]
 dev = ["mypy >= 0.981", "black >= 23.1.0"]
 examples = ["torch >= 1.13.1", "transformers >= 4.29.2"]
+rust = ["mec_rust >= 0.1.0"]
 
 [[tool.mypy.overrides]]
 module = ["transformers"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["mec_rust"]
 ignore_missing_imports = true
 
 [tool.setuptools]
