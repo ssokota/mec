@@ -7,8 +7,14 @@ from ..utilities import (
     normalize,
 )
 
+# Try to import the Rust implementation, fall back to Python if not available
+try:
+    from mec_rust import greedy_mec as _greedy_mec_rust
+    _USE_RUST = True
+except ImportError:
+    _USE_RUST = False
 
-SparseArray = dict[tuple[int, ...], np.float128]
+SparseArray = dict[tuple[int, ...], np.float64]
 
 
 @overload
@@ -72,7 +78,6 @@ def greedy_mec(
         >>> greedy_mec(x, y, z, sparse=True)
         {(0, 0, 0): 0.6, (0, 1, 1): 0.25, (0, 0, 2): 0.1, (0, 0, 1): 0.05}
     """
-    # Validate marginals
     for i, marginal in enumerate(marginals):
         if not isinstance(marginal, np.ndarray):
             raise TypeError(f"Input {i} is not numpy array.")
@@ -80,19 +85,30 @@ def greedy_mec(
             raise ValueError(f"Input {i} is not 1D numpy array.")
         if not is_distribution(marginal):
             raise ValueError(f"Input {i} is not valid distribution.")
-
-    # Validate sparse flag
     if not isinstance(sparse, bool):
         raise TypeError("Sparse flag must be boolean.")
+
+    # Use Rust implementation if available
+    if _USE_RUST:
+        # Convert to float64 for Rust and normalize to handle floating point errors
+        marginals_f64 = []
+        for m in marginals:
+            m_f64 = m.astype(np.float64)
+            m_f64 = np.clip(m_f64, 0, None)
+            m_f64 = m_f64 / m_f64.sum()
+            marginals_f64.append(m_f64)
+
+        result = _greedy_mec_rust(*marginals_f64, sparse=sparse)
+        return result
 
     shapes = [len(marginal) for marginal in marginals]
     max_len = max(shapes)
 
-    # Increase precision, renormalize, pad, and stack
+    # Normalize, pad, and stack
     prepped_marginals = np.stack(
         [
             np.pad(
-                normalize(marginal.astype(np.float128)), (0, max_len - len(marginal))
+                normalize(marginal.astype(np.float64)), (0, max_len - len(marginal))
             )
             for marginal in marginals
         ]
@@ -103,7 +119,7 @@ def greedy_mec(
     if sparse:
         coupling = {}
     else:
-        coupling = np.zeros(len(marginals) * [max_len], dtype=np.float128)
+        coupling = np.zeros(len(marginals) * [max_len], dtype=np.float64)
 
     # Main body of greedy approximation algorithm
     while True:

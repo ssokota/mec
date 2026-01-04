@@ -16,6 +16,7 @@ classifiers = [
 ]
 dependencies = [
         "numpy >= 1.24.3",
+        "mec_rust >= 0.1.0",
 ]
 dynamic = ["version"]
 
