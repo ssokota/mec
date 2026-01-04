@@ -11,6 +11,7 @@ try:
         is_distribution as _is_distribution_rust,
         is_deterministic as _is_deterministic_rust,
     )
+
     _USE_RUST_UTILS = True
 except ImportError:
     _USE_RUST_UTILS = False

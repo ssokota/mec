@@ -28,5 +28,9 @@ rust = ["mec_rust >= 0.1.0"]
 module = ["transformers"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = ["mec_rust"]
+ignore_missing_imports = true
+
 [tool.setuptools]
 packages = ["mec"]

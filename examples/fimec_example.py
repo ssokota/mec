@@ -1,4 +1,4 @@
-"""In this example, we couple a bytetext distribution with a natural language 
+"""In this example, we couple a bytetext distribution with a natural language
 distribution using FIMEC. We estimate the joint entropy of the coupling using samples.
 """
 

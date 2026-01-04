@@ -10,6 +10,7 @@ from ..utilities import (
 # Try to import the Rust implementation, fall back to Python if not available
 try:
     from mec_rust import greedy_mec as _greedy_mec_rust
+
     _USE_RUST = True
 except ImportError:
     _USE_RUST = False
@@ -107,9 +108,7 @@ def greedy_mec(
     # Normalize, pad, and stack
     prepped_marginals = np.stack(
         [
-            np.pad(
-                normalize(marginal.astype(np.float64)), (0, max_len - len(marginal))
-            )
+            np.pad(normalize(marginal.astype(np.float64)), (0, max_len - len(marginal)))
             for marginal in marginals
         ]
     )
