@@ -23,7 +23,7 @@ fn entropy(py: Python, distribution: &Bound<'_, PyAny>) -> PyResult<f64> {
     // Try to get the array as a contiguous f64 array
     let np = py.import("numpy")?;
     let arr_flat = np.call_method1("asarray", (distribution,))?.call_method1("flatten", ())?;
-    let arr = arr_flat.downcast::<PyArray1<f64>>()?;
+    let arr = arr_flat.cast::<PyArray1<f64>>()?;
     let readonly = arr.readonly();
     let view = readonly.as_array();
 
@@ -79,7 +79,7 @@ fn is_deterministic(z: PyReadonlyArray1<f64>) -> bool {
 
 /// Compute upper bounds on entropies of distributions
 #[pyfunction]
-fn entropy_upper_bounds(z: PyReadonlyArray1<f64>, num_states: usize) -> Py<PyArray1<f64>> {
+fn entropy_upper_bounds(py: Python, z: PyReadonlyArray1<f64>, num_states: usize) -> Py<PyArray1<f64>> {
     let arr = z.as_array();
     let log_num_states = (num_states as f64).ln();
     let uniform_prob = 1.0 / (num_states as f64);
@@ -104,12 +104,13 @@ fn entropy_upper_bounds(z: PyReadonlyArray1<f64>, num_states: usize) -> Py<PyArr
         result.push(upper_bound);
     }
 
-    Python::with_gil(|py| Array::from_vec(result).into_pyarray(py).unbind())
+    Array::from_vec(result).into_pyarray(py).unbind()
 }
 
 /// Find rows in matrix proportional to given row
 #[pyfunction]
 fn get_proportional_rows(
+    py: Python,
     matrix_flat: PyReadonlyArray1<f64>,
     row_index: usize,
     num_cols: usize,
@@ -132,11 +133,9 @@ fn get_proportional_rows(
 
     if ref_non_zero_indices.is_empty() {
         // If reference row is all zeros, return just this row
-        return Python::with_gil(|py| {
-            Array::from_vec(vec![row_index as i64])
-                .into_pyarray(py)
-                .unbind()
-        });
+        return Array::from_vec(vec![row_index as i64])
+            .into_pyarray(py)
+            .unbind();
     }
 
     // Normalize reference row (only non-zero entries)
@@ -182,11 +181,9 @@ fn get_proportional_rows(
         }
     }
 
-    Python::with_gil(|py| {
-        Array::from_vec(proportional_indices)
-            .into_pyarray(py)
-            .unbind()
-    })
+    Array::from_vec(proportional_indices)
+        .into_pyarray(py)
+        .unbind()
 }
 
 #[derive(Debug)]
