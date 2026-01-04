@@ -22,7 +22,8 @@ jobs:
       - name: Build Rust extension
         run: |
           cd rust
-          maturin develop --release
+          maturin build --release
+          pip install target/wheels/*.whl
           cd ..
       - name: Install dependencies
         run: |
