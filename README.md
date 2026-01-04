@@ -17,24 +17,41 @@ The package implements three main algorithms:
 
 ## Installation
 
-The steps below install the package. For a slower python-only version, skip to step 3.
+### Basic Installation
+
+Install the package with Python-only implementation:
+```bash
+pip install -e .
+```
+
+Or with examples:
+```bash
+pip install -e ".[examples]"
+```
+
+### Optional: Rust Extension for Better Performance
+
+For significantly faster performance, you can build and install the optional Rust extension:
 
 1. Install Rust: https://rustup.rs/
-2. Build the Rust extension:
+2. Install maturin (the Rust-Python build tool):
+   ```bash
+   pip install maturin
+   ```
+3. Build and install the Rust extension:
    ```bash
    cd rust
    maturin develop --release
    cd ..
    ```
-3. Install the main package:
+4. Verify it's working (should print "Using Rust implementation"):
    ```bash
-   pip install -e .
+   python -c "from mec_rust import greedy_mec; print('Using Rust implementation')"
    ```
-   or (to run the examples):
-   ```bash
-   pip install ".[examples]"
-   ```
-See [MIGRATION.md](MIGRATION.md) for more details on the Rust implementation.
+
+The package automatically uses the Rust implementation when available and falls back to Python otherwise.
+
+See [MIGRATION.md](MIGRATION.md) and [PERFORMANCE.md](PERFORMANCE.md) for more details on the Rust implementation.
 
 ## Usage
 
