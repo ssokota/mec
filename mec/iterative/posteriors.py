@@ -1,9 +1,11 @@
 from abc import ABC
 from typing import Optional, TypeVar
+import heapq
 
 import numpy as np
 
 from ..exceptions import ProbabilityZero
+from ..utilities import entropy
 
 
 class Posterior(ABC):
@@ -57,23 +59,40 @@ class TabularPosterior(Posterior):
 
 
 class FactoredPosterior(Posterior):
-    def __init__(self, prior: list[np.ndarray], active_component: int) -> None:
+    def __init__(self, prior: list[np.ndarray]) -> None:
         """Posterior distribution represented as list of component distributions.
 
         Joint probability is product of component distributions.
 
         Args:
             prior: List of prior distributions.
-            active_component: Index of active component.
 
         Attributes:
             component_distributions: List of component distributions.
-            active_component: Index of active component.
-            _distribution: Probability distribution of active component.
+            _entropy_heap: Max heap of (-entropy, component_index) for efficient max queries.
         """
         self.component_distributions = [np.copy(x) for x in prior]
-        self.active_component = active_component
-        self._distribution = self.component_distributions[active_component]
+        self._entropy_heap = [
+            (-entropy(dist), i) for i, dist in enumerate(self.component_distributions)
+        ]
+        heapq.heapify(self._entropy_heap)
+
+    @property
+    def max_entropy_component(self) -> int:
+        """Index of component with maximum entropy (O(1) heap top access)."""
+        return self._entropy_heap[0][1]
+
+    @property
+    def distribution(self) -> np.ndarray:
+        """Array representing probability distribution of max entropy component."""
+        return self.component_distributions[self.max_entropy_component]
+
+    @distribution.setter
+    def distribution(self, distribution: np.ndarray) -> None:
+        """Set probability distribution of max entropy component and update heap."""
+        max_ent_idx = self.max_entropy_component
+        np.copyto(self.component_distributions[max_ent_idx], distribution)
+        heapq.heapreplace(self._entropy_heap, (-entropy(distribution), max_ent_idx))
 
 
 class AutoregressivePosterior(Posterior):

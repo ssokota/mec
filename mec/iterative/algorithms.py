@@ -676,20 +676,13 @@ class FIMEC(IMEC[FactoredMarginal, FactoredPosterior]):
     def _max_ent_partition(self, posterior: FactoredPosterior) -> FactoredPosterior:
         """Implements method from base class.
 
-        Selects component with highest entropy.
+        Returns posterior (max entropy component tracked by heap).
         """
-        entropies = [
-            entropy(component_distribution)
-            for component_distribution in posterior.component_distributions
-        ]
-        highest_entropy_component = int(np.argmax(entropies))
-        return FactoredPosterior(
-            posterior.component_distributions, highest_entropy_component
-        )
+        return posterior
 
     def _initialize_posterior(self) -> FactoredPosterior:
         """Implements method from base class."""
-        return FactoredPosterior(self.mu.component_distributions, 0)
+        return FactoredPosterior(self.mu.component_distributions)
 
     @staticmethod
     def _make_select_true_x_i(x: list[int]) -> Callable[[np.ndarray, list[int]], int]:
@@ -719,7 +712,7 @@ class FIMEC(IMEC[FactoredMarginal, FactoredPosterior]):
         """Implements method from base class."""
         if x is None:
             return y_j_conditional
-        return normalize(coupling_matrix[:, x[posterior.active_component]])
+        return normalize(coupling_matrix[:, x[posterior.max_entropy_component]])
 
 
 class ARIMEC(IMEC[AutoRegressiveMarginal, AutoregressivePosterior]):
