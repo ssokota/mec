@@ -10,6 +10,7 @@ use sparse_coupling::SparseCoupling;
 const TOLERANCE: f64 = 1e-9;
 const RTOL: f64 = 1e-5;  // Relative tolerance matching np.isclose
 const ATOL: f64 = 1e-8;  // Absolute tolerance matching np.isclose
+const DISTRIBUTION_SUM_TOLERANCE: f64 = 1e-6;  // Tolerance for validating distribution sums to 1.0
 
 /// Check if two values are close (matching np.isclose behavior)
 #[inline]
@@ -17,15 +18,10 @@ fn is_close(a: f64, b: f64) -> bool {
     (a - b).abs() <= ATOL + RTOL * b.abs()
 }
 
-/// Calculate Shannon entropy of a probability distribution
+/// Calculate Shannon entropy of a probability distribution (in nats, using natural logarithm)
 #[pyfunction]
-fn entropy(py: Python, distribution: &Bound<'_, PyAny>) -> PyResult<f64> {
-    // Try to get the array as a contiguous f64 array
-    let np = py.import("numpy")?;
-    let arr_flat = np.call_method1("asarray", (distribution,))?.call_method1("flatten", ())?;
-    let arr = arr_flat.cast::<PyArray1<f64>>()?;
-    let readonly = arr.readonly();
-    let view = readonly.as_array();
+fn entropy(distribution: PyReadonlyArray1<f64>) -> PyResult<f64> {
+    let view = distribution.as_array();
 
     let mut result = 0.0;
     for &p in view.iter() {
@@ -37,7 +33,10 @@ fn entropy(py: Python, distribution: &Bound<'_, PyAny>) -> PyResult<f64> {
     Ok(result)
 }
 
-/// Check if an array is a valid probability distribution
+/// Check if an array is a valid probability distribution.
+///
+/// Returns true if all values are non-negative (allowing small numerical errors)
+/// and the sum is approximately 1.0.
 #[pyfunction]
 fn is_distribution(z: PyReadonlyArray1<f64>) -> bool {
     let arr = z.as_array();
@@ -57,7 +56,9 @@ fn is_distribution(z: PyReadonlyArray1<f64>) -> bool {
     is_close(sum, 1.0)
 }
 
-/// Check if a distribution is deterministic (all mass on one state)
+/// Check if a distribution is deterministic (all mass on one state).
+///
+/// Returns true if exactly one value is approximately 1.0 and all others are approximately 0.0.
 #[pyfunction]
 fn is_deterministic(z: PyReadonlyArray1<f64>) -> bool {
     let arr = z.as_array();
@@ -77,7 +78,10 @@ fn is_deterministic(z: PyReadonlyArray1<f64>) -> bool {
     found_one
 }
 
-/// Compute upper bounds on entropies of distributions
+/// Compute upper bounds on entropies of distributions given lower bounds on maximum probability.
+///
+/// For each value in z (representing a lower bound on the maximum probability),
+/// computes the maximum possible entropy (in nats) for a distribution over num_states.
 #[pyfunction]
 fn entropy_upper_bounds(py: Python, z: PyReadonlyArray1<f64>, num_states: usize) -> Py<PyArray1<f64>> {
     let arr = z.as_array();
@@ -118,9 +122,11 @@ fn get_proportional_rows(
     let flat = matrix_flat.as_array();
     let num_rows = flat.len() / num_cols;
 
-    // Get the reference row
-    let ref_row_start = row_index * num_cols;
-    let ref_row = &flat.as_slice().unwrap()[ref_row_start..ref_row_start + num_cols];
+    // Helper to get element at (row, col)
+    let get_elem = |row: usize, col: usize| flat[row * num_cols + col];
+
+    // Collect reference row values
+    let ref_row: Vec<f64> = (0..num_cols).map(|col| get_elem(row_index, col)).collect();
 
     // Find non-zero pattern of reference row
     let ref_non_zero: Vec<bool> = ref_row.iter().map(|&x| x > 0.0).collect();
@@ -148,21 +154,18 @@ fn get_proportional_rows(
     let mut proportional_indices = Vec::new();
 
     for row_idx in 0..num_rows {
-        let row_start = row_idx * num_cols;
-        let row = &flat.as_slice().unwrap()[row_start..row_start + num_cols];
-
         // Check if non-zero pattern matches
         let matches_pattern = ref_non_zero
             .iter()
             .enumerate()
-            .all(|(i, &ref_nz)| (row[i] > 0.0) == ref_nz);
+            .all(|(col, &ref_nz)| (get_elem(row_idx, col) > 0.0) == ref_nz);
 
         if !matches_pattern {
             continue;
         }
 
         // Normalize this row and compare
-        let row_sum: f64 = ref_non_zero_indices.iter().map(|&i| row[i]).sum();
+        let row_sum: f64 = ref_non_zero_indices.iter().map(|&i| get_elem(row_idx, i)).sum();
 
         if row_sum < TOLERANCE {
             continue;
@@ -172,7 +175,7 @@ fn get_proportional_rows(
             .iter()
             .zip(&ref_normalized)
             .all(|(&i, &ref_val)| {
-                let row_val = row[i] / row_sum;
+                let row_val = get_elem(row_idx, i) / row_sum;
                 is_close(row_val, ref_val)
             });
 
@@ -207,9 +210,17 @@ impl<'py> IntoPyObject<'py> for SparseCouplingOrMatrix {
     }
 }
 
+/// Compute the greedy maximum entropy coupling (MEC) of multiple marginal distributions.
+///
+/// Takes two or more marginal distributions and computes their maximum entropy coupling
+/// using a greedy algorithm. Returns either a sparse dictionary or dense numpy array.
+///
+/// # Arguments
+/// * `marginals` - Two or more 1D numpy arrays representing probability distributions
+/// * `sparse` - If true, returns a sparse dictionary; otherwise returns a dense array
 #[pyfunction]
 #[pyo3(signature = (*marginals, sparse=false))]
-fn greedy_mec(marginals: &Bound<'_, PyTuple>, sparse: bool) -> PyResult<SparseCouplingOrMatrix> {
+fn greedy_mec(py: Python, marginals: &Bound<'_, PyTuple>, sparse: bool) -> PyResult<SparseCouplingOrMatrix> {
     if marginals.len() < 2 {
         return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
             "Expected at least two marginals",
@@ -231,7 +242,7 @@ fn greedy_mec(marginals: &Bound<'_, PyTuple>, sparse: bool) -> PyResult<SparseCo
     for (idx, arr) in ndarrays.iter().enumerate() {
         let view = arr.as_array();
         let sum: f64 = view.sum();
-        if (sum - 1.0).abs() > 1e-6 {
+        if (sum - 1.0).abs() > DISTRIBUTION_SUM_TOLERANCE {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
                 "Marginal #{idx} sums to {sum} != 1.0"
             )));
@@ -250,7 +261,7 @@ fn greedy_mec(marginals: &Bound<'_, PyTuple>, sparse: bool) -> PyResult<SparseCo
         }
     }
 
-    let gamma = SparseCoupling::new(&ndarrays);
+    let gamma = SparseCoupling::new(py, &ndarrays)?;
 
     if sparse {
         Ok(SparseCouplingOrMatrix::Sparse(gamma))

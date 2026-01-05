@@ -1,9 +1,18 @@
 use pyo3::{
-    types::{PyDict, PyDictMethods, PyInt, PyTuple},
+    types::{PyAnyMethods, PyDict, PyDictMethods, PyInt, PyTuple},
     Bound, IntoPyObject, PyErr, PyResult, Python,
 };
 use std::collections::BinaryHeap;
 
+// Tolerance for considering values as zero in coupling construction
+const COUPLING_TOLERANCE: f64 = 1e-12;
+// Tolerance for residual warning threshold
+const RESIDUAL_WARNING_THRESHOLD: f64 = 1e-6;
+
+/// A sparse representation of a joint probability distribution (coupling).
+///
+/// Stores only non-zero entries as (indices, value) pairs where indices
+/// represent the coordinates in the multi-dimensional distribution.
 #[derive(Debug, Clone)]
 pub struct SparseCoupling(pub Vec<(Vec<usize>, f64)>);
 
@@ -36,8 +45,12 @@ impl Ord for ValAndIdx {
 }
 
 impl SparseCoupling {
-    pub fn new(ndarrays: &[numpy::PyReadonlyArray1<f64>]) -> Self {
-        assert!(ndarrays.len() > 0);
+    pub fn new(py: Python, ndarrays: &[numpy::PyReadonlyArray1<f64>]) -> PyResult<Self> {
+        if ndarrays.is_empty() {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "Expected at least one marginal distribution"
+            ));
+        }
         let mut data = vec![];
 
         let mut heaps: Vec<BinaryHeap<ValAndIdx>> = ndarrays
@@ -47,7 +60,7 @@ impl SparseCoupling {
 
                 let mut heap = BinaryHeap::new();
                 for (idx, &val) in view.iter().enumerate() {
-                    if val > 1e-12 {
+                    if val > COUPLING_TOLERANCE {
                         heap.push(ValAndIdx(val, idx));
                     }
                 }
@@ -55,7 +68,7 @@ impl SparseCoupling {
             })
             .collect();
 
-        while !heaps.iter().any(|heap| heap.is_empty()) {
+        while heaps.iter().all(|heap| !heap.is_empty()) {
             let tops: Vec<ValAndIdx> = heaps
                 .iter_mut()
                 .map(|heap| heap.pop().expect("The heap is not empty"))
@@ -64,7 +77,7 @@ impl SparseCoupling {
 
             heaps.iter_mut().zip(tops.iter()).for_each(|(heap, top)| {
                 let remaining = top.0 - min_val;
-                if remaining > 1e-12 {
+                if remaining > COUPLING_TOLERANCE {
                     heap.push(ValAndIdx(remaining, top.1));
                 }
             });
@@ -76,13 +89,17 @@ impl SparseCoupling {
             .into_iter()
             .map(|heap| heap.into_iter().map(|val_idx| val_idx.0).sum::<f64>())
             .sum::<f64>();
-        if residual > 1e-6 {
-            println!(
-                "[WARN] residual value after sparse coupling construction is: {}",
-                residual
-            );
+        if residual > RESIDUAL_WARNING_THRESHOLD {
+            let warnings = py.import("warnings")?;
+            warnings.call_method1(
+                "warn",
+                (format!(
+                    "Residual value after sparse coupling construction is: {}",
+                    residual
+                ),),
+            )?;
         }
 
-        SparseCoupling(data)
+        Ok(SparseCoupling(data))
     }
 }

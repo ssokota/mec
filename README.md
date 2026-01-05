@@ -51,7 +51,7 @@ For significantly faster performance, you can build and install the optional Rus
 
 The package automatically uses the Rust implementation when available and falls back to Python otherwise.
 
-See [MIGRATION.md](MIGRATION.md) and [PERFORMANCE.md](PERFORMANCE.md) for more details on the Rust implementation.
+See [MIGRATION.md](MIGRATION.md) for more details on the Rust implementation.
 
 ## Usage
 
