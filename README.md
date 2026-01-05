@@ -19,19 +19,19 @@ The package implements three main algorithms:
 
 ### Basic Installation
 
-Install the package with Python-only implementation:
+Install the package:
 ```bash
-pip install -e .
+pip install .
 ```
 
-Or with examples:
+Install the package with examples:
 ```bash
-pip install -e ".[examples]"
+pip install ".[examples]"
 ```
 
 ### Optional: Rust Extension for Better Performance
 
-For significantly faster performance, you can build and install the optional Rust extension:
+For significantly better performance, you can build and install the optional Rust extension:
 
 1. Install Rust: https://rustup.rs/
 2. Install maturin (the Rust-Python build tool):
