@@ -51,8 +51,6 @@ For significantly faster performance, you can build and install the optional Rus
 
 The package automatically uses the Rust implementation when available and falls back to Python otherwise.
 
-See [MIGRATION.md](MIGRATION.md) for more details on the Rust implementation.
-
 ## Usage
 
 ### Greedy Approximation Algorithm
@@ -105,6 +103,25 @@ For examples, see:
 - `examples/arimec_example.py` for ARIMEC.
 - `examples/stego_encrypted_example.py` for encrypted steganography.
 - `examples/stego_unencrypted_example.py` for unencrypted steganography.
+
+## Architecture
+
+The library now uses a hybrid Python/Rust architecture:
+
+- **Rust (in `rust/`)**: Performance-critical algorithms and utilities
+  - `greedy_mec`: Core coupling algorithm
+  - `entropy`: Shannon entropy calculation
+  - `entropy_upper_bounds`: Entropy upper bounds for pruning
+  - `get_proportional_rows`: Find proportional matrix rows
+  - `is_distribution`: Distribution validation
+  - `is_deterministic`: Deterministic distribution check
+
+- **Python (in `mec/`)**: High-level APIs and iterative algorithms
+  - `TIMEC`, `FIMEC`, `ARIMEC`: Iterative coupling algorithms
+  - Marginal and posterior classes
+  - High-level utility functions
+  - Examples
+
   
 ## Additional Information
 
