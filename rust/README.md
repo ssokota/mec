@@ -2,9 +2,9 @@
 
 Rust implementation of performance-critical components for the `mec` (minimum entropy coupling) library.
 
-## Overview
+## Installation
 
-This package provides high-performance Rust implementations of performance-critical algorithms and utility functions for the `mec` (minimum entropy coupling) library.
+To build, run `maturin develop --release` from this directory.
 
 ## What's Implemented
 
@@ -16,23 +16,6 @@ This package provides high-performance Rust implementations of performance-criti
 - `get_proportional_rows`: Find proportional rows in a matrix
 - `is_distribution`: Fast distribution validation
 - `is_deterministic`: Check if a distribution is deterministic
-
-## Building
-
-This package uses [maturin](https://github.com/PyO3/maturin) to build Python bindings for Rust code.
-
-To build and install in development mode:
-
-```bash
-cd rust
-maturin develop --release
-```
-
-To build a wheel for distribution:
-
-```bash
-maturin build --release
-```
 
 ## Usage
 
