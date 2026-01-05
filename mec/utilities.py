@@ -27,7 +27,7 @@ def entropy(distribution: np.ndarray) -> float:
         Entropy of distribution.
     """
     if _USE_RUST_UTILS:
-        return float(_entropy_rust(distribution.astype(np.float64)))
+        return float(_entropy_rust(distribution.flatten().astype(np.float64)))
 
     # Python fallback
     mask = np.logical_not(np.isclose(distribution, 0))
