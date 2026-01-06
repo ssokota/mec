@@ -91,10 +91,9 @@ def greedy_mec(
 
     # Use Rust implementation if available
     if _USE_RUST:
-        # Convert to float64 for Rust and normalize to handle floating point errors
         marginals_f64 = []
         for m in marginals:
-            m_f64 = m.astype(np.float64)
+            m_f64 = m if m.dtype == np.float64 else m.astype(np.float64)
             m_f64 = np.clip(m_f64, 0, None)
             m_f64 = m_f64 / m_f64.sum()
             marginals_f64.append(m_f64)
@@ -108,7 +107,14 @@ def greedy_mec(
     # Normalize, pad, and stack
     prepped_marginals = np.stack(
         [
-            np.pad(normalize(marginal.astype(np.float64)), (0, max_len - len(marginal)))
+            np.pad(
+                normalize(
+                    marginal
+                    if marginal.dtype == np.float64
+                    else marginal.astype(np.float64)
+                ),
+                (0, max_len - len(marginal)),
+            )
             for marginal in marginals
         ]
     )
