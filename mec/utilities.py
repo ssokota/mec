@@ -27,7 +27,11 @@ def entropy(distribution: np.ndarray) -> float:
         Entropy of distribution.
     """
     if _USE_RUST_UTILS:
-        return float(_entropy_rust(distribution.flatten().astype(np.float64)))
+        if distribution.ndim > 1:
+            distribution = distribution.flatten()
+        if distribution.dtype != np.float64:
+            distribution = distribution.astype(np.float64)
+        return float(_entropy_rust(distribution))
 
     # Python fallback
     mask = np.logical_not(np.isclose(distribution, 0))
@@ -45,7 +49,8 @@ def entropy_upper_bounds(z: np.ndarray, num_states: int) -> np.ndarray:
         Upper bounds on entropy of distributions satisfying args.
     """
     if _USE_RUST_UTILS:
-        return _entropy_upper_bounds_rust(z.astype(np.float64), num_states)
+        z_f64 = z if z.dtype == np.float64 else z.astype(np.float64)
+        return _entropy_upper_bounds_rust(z_f64, num_states)
 
     # Python fallback
     upper_bounds = np.ones_like(z) * np.log(num_states)
@@ -72,11 +77,16 @@ def get_proportional_rows(matrix: np.ndarray, row_index: int) -> np.ndarray:
         Indices of rows in matrix that are proportional to row at row_index.
     """
     if _USE_RUST_UTILS:
-        # Rust implementation expects flat array and number of columns
-        matrix_flat = matrix.flatten().astype(np.float64)
         num_cols = matrix.shape[1]
+        if matrix.dtype == np.float64:
+            if matrix.flags["C_CONTIGUOUS"]:
+                matrix_flat = matrix.ravel()
+            else:
+                matrix_flat = matrix.flatten()
+        else:
+            matrix_flat = matrix.flatten().astype(np.float64)
         result = _get_proportional_rows_rust(matrix_flat, row_index, num_cols)
-        return result.astype(np.intp)  # Convert to numpy's native int type
+        return result if result.dtype == np.intp else result.astype(np.intp)
 
     # Python fallback
     # Filter rows with inconsistent sparsity pattern and columns without entries.
@@ -118,8 +128,8 @@ def is_distribution(z: np.ndarray) -> bool:
         True if `z` is a valid probability distribution, False otherwise.
     """
     if _USE_RUST_UTILS:
-        # Rust implementation performs validation with a single pass/tolerance.
-        return bool(_is_distribution_rust(z.astype(np.float64)))
+        z_f64 = z if z.dtype == np.float64 else z.astype(np.float64)
+        return bool(_is_distribution_rust(z_f64))
 
     return bool(
         np.logical_or(z >= 0, np.isclose(z, 0)).all() and np.isclose(z.sum(), 1)
@@ -136,7 +146,8 @@ def is_deterministic(z: np.ndarray) -> bool:
         True if `z` is a deterministic distribution, False otherwise.
     """
     if _USE_RUST_UTILS:
-        return bool(_is_deterministic_rust(z.astype(np.float64)))
+        z_f64 = z if z.dtype == np.float64 else z.astype(np.float64)
+        return bool(_is_deterministic_rust(z_f64))
 
     return np.isclose(z.sum(), 1) and np.sum(z == 1) == 1
 
@@ -187,7 +198,8 @@ def normalize(propto: np.ndarray) -> np.ndarray:
     Returns:
         Normalized array.
     """
-    propto = propto.astype(np.float64)
+    if propto.dtype != np.float64:
+        propto = propto.astype(np.float64)
     return propto / propto.sum()
 
 
@@ -216,4 +228,5 @@ def sample(z: np.ndarray) -> int:
         Index of sampled element.
     """
     # Note: np.random.choice does not support float128
-    return np.random.choice(range(len(z)), p=z.astype(np.float64))
+    z_f64 = z if z.dtype == np.float64 else z.astype(np.float64)
+    return np.random.choice(range(len(z)), p=z_f64)
